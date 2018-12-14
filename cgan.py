@@ -11,6 +11,8 @@ from keras.layers import multiply
 import cv2
 import pandas as pd
 
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 import sys
@@ -21,17 +23,19 @@ import numpy as np
 class CGAN():
     def __init__(self):
         # Input shape
-        self.img_rows = 64
-        self.img_cols = 64
+        self.img_rows = 256
+        self.img_cols = 256
         self.channels = 1
         self.img_shape = (self.img_rows, self.img_cols, self.channels)
         self.num_classes = 5
-        self.latent_dim = 10000
+        self.latent_dim = 128
 
         optimizer = Adam(0.0002, 0.5)
 
         # Build and compile the discriminator
         self.discriminator = self.build_discriminator()
+	# is here
+	
         self.discriminator.compile(loss='binary_crossentropy',
                                    optimizer=optimizer,
                                    metrics=['accuracy'])
@@ -44,6 +48,7 @@ class CGAN():
         label = Input(shape=(1,))
 
         img = self.generator([noise, label])
+	# was here
         # For the combined model we will only train the generator
         self.discriminator.trainable = False
 
@@ -109,8 +114,8 @@ class CGAN():
 
         return Model([img, label], validity)
 
-    def load_xrays(self, epochs=10, batch_size=128, save_interval=1):
-        (img_x, img_y) = 64, 64
+    def load_xrays(self, epochs=10, batch_size=128, save_interval=50):
+        (img_x, img_y) = 256, 256
         train_path = "trainData.csv"
 
         classes = ['Atelectasis', 'No Finding', 'Cardiomegaly', 'Effusion', 'Pneumothorax']
@@ -123,7 +128,8 @@ class CGAN():
         y_train = []
         # prepare label binarizer
         from sklearn import preprocessing
-        lb = preprocessing.LabelBinarizer()
+	# OHE
+        lb = preprocessing.LabelEncoder()#Binarizer()
 	lb.fit(classes)	
 
 	count = 0
@@ -139,9 +145,10 @@ class CGAN():
 	    # print("shape of image: {}".format(arr1.shape))
             x_train.append(arr1)
             # not yet one-hot encoded
-	    #label = lb.transform(row["Finding Labels"])
-	    #y_train.append(label)
-            y_train.append(lb.transform([row["Finding Labels"]]).flatten().T)
+	    label = lb.transform([row["Finding Labels"]])[0]
+	    # STARTHERE
+	    y_train.append(label)
+            #y_train.append(lb.transform([row["Finding Labels"]]).flatten().T)
 	    count += 1
             # OHE the y data
 	# DEBUG DEBUG DEBUG transpose
@@ -154,6 +161,7 @@ class CGAN():
 	y_train = np.asarray(y_train)
         x_train = x_train.reshape(count, img_y, img_x, 1)
         #y_train = y_train.reshape(count, num_classes)
+	print("Y SHAPE BEFORE RESHAPING: {}".format(y_train.shape))
 	y_train = y_train.reshape(-1, 1)
 	# DEBUG
 	print("Y SHAPE: {}".format(y_train.shape))
@@ -161,24 +169,23 @@ class CGAN():
         valid = np.ones((batch_size, 1))
         fake = np.zeros((batch_size, 1))
 
-        for epoch in range(epochs):
+	for epoch in range(epochs):
 
             # ---------------------
             #  Train Discriminator
             # ---------------------
 
-            # Select a random half of images
+            # Select a random half batch of images
             idx = np.random.randint(0, x_train.shape[0], batch_size)
             imgs, labels = x_train[idx], y_train[idx]
 
-            # Sample noise and generate a batch of new images
-            noise = np.random.normal(0, 1, (batch_size, self.latent_dim))
-	    # DEBUG
-	    print("noise sub-array: {}".format(noise.shape))
-	    print("The sub-array: {}".format(labels.shape))
+            # Sample noise as generator input
+            noise = np.random.normal(0, 1, (batch_size, 128))
+
+            # Generate a half batch of new images
             gen_imgs = self.generator.predict([noise, labels])
 
-            # Train the discriminator (real classified as ones and generated as zeros)
+            # Train the discriminator
             d_loss_real = self.discriminator.train_on_batch([imgs, labels], valid)
             d_loss_fake = self.discriminator.train_on_batch([gen_imgs, labels], fake)
             d_loss = 0.5 * np.add(d_loss_real, d_loss_fake)
@@ -190,20 +197,22 @@ class CGAN():
             # Condition on labels
             sampled_labels = np.random.randint(0, 5, batch_size).reshape(-1, 1)
 
-            # Train the generator (wants discriminator to mistake images as real)
+            # Train the generator
             g_loss = self.combined.train_on_batch([noise, sampled_labels], valid)
 
             # Plot the progress
-            print("%d [D loss: %f, acc.: %.2f%%] [G loss: %f]" % (epoch, d_loss[0], 100 * d_loss[1], g_loss))
+            print ("%d [D loss: %f, acc.: %.2f%%] [G loss: %f]" % (epoch, d_loss[0], 100*d_loss[1], g_loss))
 
             # If at save interval => save generated image samples
-            if epoch % save_interval == 1:
-                self.save_imgs(epoch)
+            #if epoch % save_interval == 0:
+                #self.sample_images(epoch)
 
-    def save_imgs(self, epoch):
-        r, c = 5,5
-        noise = np.random.normal(0, 1, (r * c, self.latent_dim))
-        gen_imgs = self.generator.predict(noise)
+    def sample_images(self, epoch):
+        r, c = 5, 5
+        noise = np.random.normal(0, 1, (r * c, 128))
+        sampled_labels = np.arange(0, 5).reshape(-1, 1)
+
+        gen_imgs = self.generator.predict([noise, sampled_labels])
 
         # Rescale images 0 - 1
         gen_imgs = 0.5 * gen_imgs + 0.5
@@ -212,29 +221,40 @@ class CGAN():
         cnt = 0
         for i in range(r):
             for j in range(c):
-                axs[i, j].imshow(gen_imgs[cnt, :, :, 0], cmap='gray')
-                axs[i, j].axis('off')
+                axs[i,j].imshow(gen_imgs[cnt,:,:,0], cmap='gray')
+                axs[i,j].set_title("Digit: %d" % sampled_labels[cnt])
+                axs[i,j].axis('off')
                 cnt += 1
-        fig.savefig("images/mnist_%d.png" % epoch)
+        fig.savefig("images/%d.png" % epoch)
         plt.close()
 
 
 if __name__ == '__main__':
     cgan = CGAN()
-    cgan.load_xrays(epochs=10, batch_size=128, save_interval=1)
-    model.save('models/cgan.h5')
+    cgan.load_xrays(epochs=100, batch_size=128, save_interval=50)
+    cgan.generator.save('models/gen.h5')
+    cgan.discriminator.save('models/disc.h5')
     # Generate one-hot-encoded labels
     # prepare label binarizer
 
     from sklearn import preprocessing
-    lb = preprocessing.LabelBinarizer()
+    lb = preprocessing.LabelEncoder()#Binarizer()
 
     classes = ['Atelectasis', 'No Finding', 'Cardiomegaly', 'Effusion', 'Pneumothorax']
 
     OHE_labels = lb.fit_transform(classes)
 
     # at the end, loop per class, per 1000 images
-    for labels in OHE_labels:
-        noise1 = np.random.normal(0, 1, (1000, cgan.latent_dim))
-        labels1 = np.tile(labels, 1000)
-        cgan.predict([noise1, labels1])
+    cnt = 0
+    fig, ax = plt.subplots()
+    for label in OHE_labels:
+        for num in range(1000):
+	    nlab = np.asarray([label]).reshape(-1, 1)
+	    noise1 = np.random.normal(0, 1, (1, 128))#cgan.latent_dim))
+	    #noise1 = np.zeros((1, 10000))
+	    #labels1 = np.tile(labels, 1000)
+	    img = cgan.generator.predict([noise1, nlab])#labels1])
+	    plt.imshow(img[cnt,:,:,0], cmap='gray')
+            #cnt+=1
+	    fig.savefig("images-no-noise/" + str(label) + "-" + str(num) + ".png")
+	    plt.clf()
