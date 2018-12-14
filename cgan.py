@@ -7,7 +7,9 @@ from keras.layers.advanced_activations import LeakyReLU
 from keras.layers.convolutional import UpSampling2D, Conv2D
 from keras.models import Sequential, Model
 from keras.optimizers import Adam
+from keras.layers import multiply
 import cv2
+import pandas as pd
 
 import matplotlib.pyplot as plt
 
@@ -19,8 +21,8 @@ import numpy as np
 class CGAN():
     def __init__(self):
         # Input shape
-        self.img_rows = 128
-        self.img_cols = 128
+        self.img_rows = 64
+        self.img_cols = 64
         self.channels = 1
         self.img_shape = (self.img_rows, self.img_cols, self.channels)
         self.num_classes = 5
@@ -73,8 +75,8 @@ class CGAN():
         noise = Input(shape=(self.latent_dim,))
         label = Input(shape=(1,), dtype='int32')
         label_embedding = Flatten()(Embedding(self.num_classes, self.latent_dim)(label))
-
-        model_input = Multiply([noise, label_embedding])
+	# lower-cased it
+        model_input = multiply([noise, label_embedding])
         img = model(model_input)
 
         return Model([noise, label], img)
@@ -100,15 +102,16 @@ class CGAN():
         label_embedding = Flatten()(Embedding(self.num_classes, np.prod(self.img_shape))(label))
         flat_img = Flatten()(img)
 
-        model_input = Multiply([flat_img, label_embedding])
+	# lower-cased it
+        model_input = multiply([flat_img, label_embedding])
 
         validity = model(model_input)
 
         return Model([img, label], validity)
 
     def load_xrays(self, epochs=10, batch_size=128, save_interval=1):
-        (img_x, img_y) = 128, 128
-        train_path = "/Desktop/newDataTrain.csv"
+        (img_x, img_y) = 64, 64
+        train_path = "trainData.csv"
 
         classes = ['Atelectasis', 'No Finding', 'Cardiomegaly', 'Effusion', 'Pneumothorax']
         num_classes = len(classes)
@@ -121,24 +124,39 @@ class CGAN():
         # prepare label binarizer
         from sklearn import preprocessing
         lb = preprocessing.LabelBinarizer()
+	lb.fit(classes)	
 
+	count = 0
         for index, row in dataTrain.iterrows():
-            img1 = row["File Name"]
+            img1 = "../images/" + row["Image Index"]
             image1 = cv2.imread(img1)  # Image.open(img).convert('L')
             image1 = image1[:, :, 0]
             arr1 = cv2.resize(image1, (img_x, img_y))
             arr1 = arr1.astype('float32')
             arr1 /= 255.0
             arr1 = arr1 - np.mean(arr1)
+	    # DEBUG
+	    # print("shape of image: {}".format(arr1.shape))
             x_train.append(arr1)
             # not yet one-hot encoded
-            y_train.append(row["Finding Labels"])
+	    #label = lb.transform(row["Finding Labels"])
+	    #y_train.append(label)
+            y_train.append(lb.transform([row["Finding Labels"]]).flatten().T)
+	    count += 1
             # OHE the y data
-        y_train = lb.fit_transform(y_train)
+	# DEBUG DEBUG DEBUG transpose
+        # y_train = lb.fit_transform(y_train)
         # finalize data
+
+	# DEBUG 
+	print("shape of x train: {}".format(len(x_train)))
         x_train = np.asarray(x_train)
-        x_train = x_train.reshape(len(dataTrain.index), img_y, img_x, 1)
-        y_train = y_train.reshape(len(dataTrain.index), num_classes)
+	y_train = np.asarray(y_train)
+        x_train = x_train.reshape(count, img_y, img_x, 1)
+        #y_train = y_train.reshape(count, num_classes)
+	y_train = y_train.reshape(-1, 1)
+	# DEBUG
+	print("Y SHAPE: {}".format(y_train.shape))
 
         valid = np.ones((batch_size, 1))
         fake = np.zeros((batch_size, 1))
@@ -155,6 +173,9 @@ class CGAN():
 
             # Sample noise and generate a batch of new images
             noise = np.random.normal(0, 1, (batch_size, self.latent_dim))
+	    # DEBUG
+	    print("noise sub-array: {}".format(noise.shape))
+	    print("The sub-array: {}".format(labels.shape))
             gen_imgs = self.generator.predict([noise, labels])
 
             # Train the discriminator (real classified as ones and generated as zeros)
@@ -201,7 +222,7 @@ class CGAN():
 if __name__ == '__main__':
     cgan = CGAN()
     cgan.load_xrays(epochs=10, batch_size=128, save_interval=1)
-    model.save('/Desktop/cgan.h5')
+    model.save('models/cgan.h5')
     # Generate one-hot-encoded labels
     # prepare label binarizer
 
