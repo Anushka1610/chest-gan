@@ -231,7 +231,7 @@ class CGAN():
 
 if __name__ == '__main__':
     cgan = CGAN()
-    cgan.load_xrays(epochs=100, batch_size=128, save_interval=50)
+    cgan.load_xrays(epochs=2000, batch_size=128, save_interval=50)
     cgan.generator.save('models/gen.h5')
     cgan.discriminator.save('models/disc.h5')
     # Generate one-hot-encoded labels
