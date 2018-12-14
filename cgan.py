@@ -2,7 +2,7 @@ from __future__ import print_function, division
 
 from keras.datasets import mnist
 from keras.layers import Input, Dense, Reshape, Flatten, Dropout
-from keras.layers import BatchNormalization, Activation, ZeroPadding2D, Embedding, Multiply
+from keras.layers import BatchNormalization, Activation, ZeroPadding2D, Embedding, Multiply, Concatenate, concatenate
 from keras.layers.advanced_activations import LeakyReLU
 from keras.layers.convolutional import UpSampling2D, Conv2D
 from keras.models import Sequential, Model
@@ -64,8 +64,8 @@ class CGAN():
 
         model = Sequential()
 
-        model.add(Dense(128 * 7 * 7, activation="relu", input_dim=self.latent_dim))
-        model.add(Reshape((7, 7, 128)))
+        model.add(Dense(128 * 32 * 32, activation="relu", input_dim=self.latent_dim))
+        model.add(Reshape((32, 32, 128)))
         model.add(UpSampling2D())
         model.add(Conv2D(128, kernel_size=3, padding="same"))
         model.add(BatchNormalization(momentum=0.8))
@@ -94,6 +94,12 @@ class CGAN():
 
     def build_discriminator(self):
 
+	img = Input(shape=self.img_shape)
+        label = Input(shape=(1,), dtype='float32')
+
+        #label_embedding = Flatten()(Embedding(self.num_classes, np.prod(self.img_shape))(label))
+        #flat_img = Flatten()(img)
+	"""
         model = Sequential()
 
         model.add(Conv2D(32, kernel_size=3, strides=2, input_shape=self.img_shape, padding="same"))
@@ -115,18 +121,40 @@ class CGAN():
         model.add(Flatten())
         model.add(Dense(1, activation='sigmoid'))
         model.summary()
-        img = Input(shape=self.img_shape)
-        label = Input(shape=(1,), dtype='int32')
+	"""
+	c1 = Conv2D(32, kernel_size=3, strides=2, padding="same")(img)
+	lr1 = LeakyReLU(alpha=0.2)(c1)
+	d1 = Dropout(0.25)(lr1)
+	c2 = Conv2D(64, kernel_size=3, strides=2, padding="same")(d1)
+	zp1 = ZeroPadding2D(padding=((0, 1), (0, 1)))(c2)
+	bn1 = BatchNormalization(momentum=0.8)(zp1)
+	lr2 = LeakyReLU(alpha=0.2)(bn1)
+	d2 = Dropout(0.25)(lr2)
+	c3 = Conv2D(128, kernel_size=3, strides=2, padding="same")(d2)
+	bn2 = BatchNormalization(momentum=0.8)(c3)
+	lr3 = LeakyReLU(alpha=0.2)(bn2)
+	d3 = Dropout(0.25)(lr3)
+	c4 = Conv2D(256, kernel_size=3, strides=1, padding="same")(d3)
+	bn3 = BatchNormalization(momentum=0.8)(c4)
+	lr4 = LeakyReLU(alpha=0.2)(bn3)
+	d4 = Dropout(0.25)(lr4)
+	f = Flatten()(d4)
+	concat = Concatenate()([f, label])
+	hid = Dense(512, activation='relu')(concat)
+	out = Dense(1, activation='sigmoid')(concat)
+        #img = Input(shape=self.img_shape)
+        #label = Input(shape=(1,), dtype='int32')
 
-        label_embedding = Flatten()(Embedding(self.num_classes, np.prod(self.img_shape))(label))
-        flat_img = Flatten()(img)
+        #label_embedding = Flatten()(Embedding(self.num_classes, np.prod(self.img_shape))(label))
+        #flat_img = Flatten()(img)
 
         # lower-cased it
-        model_input = multiply([flat_img, label_embedding])
+        #model_input = multiply([flat_img, label_embedding])
 
-        validity = model(model_input)
+        #validity = model(model_input)
 
-        return Model([img, label], validity)
+        #return Model([img, label], validity)
+	return Model([img, label], out)
 
     def load_xrays(self, epochs=10, batch_size=128, save_interval=50):
         (img_x, img_y) = 256, 256
@@ -183,6 +211,9 @@ class CGAN():
         valid = np.ones((batch_size, 1))
         fake = np.zeros((batch_size, 1))
 
+	# new experience relay to avoid mode collapse
+	exp_replay = []
+
 	for epoch in range(epochs):
 
             # ---------------------
@@ -202,7 +233,28 @@ class CGAN():
             # Train the discriminator
             d_loss_real = self.discriminator.train_on_batch([imgs, labels], valid)
             d_loss_fake = self.discriminator.train_on_batch([gen_imgs, labels], fake)
+	    
+	    # relay stuff
+	    noise_prop = 0.05
+	    gene_labels = np.ones((batch_size, 1)) - np.random.uniform(low=0.0, high=0.1, size=(batch_size, 1))
+	    flipped_idx = np.random.choice(np.arange(len(gene_labels)), size=int(noise_prop*len(gene_labels)))
+	    gene_labels[flipped_idx] = 1 - gene_labels[flipped_idx]
+	    
+	    # Store a random point for experience replay
+	    r_idx = np.random.randint(batch_size)
+	    exp_replay.append([gen_imgs[r_idx], labels[r_idx], gene_labels[r_idx]])
+	    
+	    #If we have enough points, do experience replay
+	    if len(exp_replay) == batch_size:
+	      generated_images = np.array([p[0] for p in exp_replay])
+	      labels = np.array([p[1] for p in exp_replay])
+	      gene_labels = np.array([p[2] for p in exp_replay])
+	      expprep_loss_gene = discriminator.train_on_batch([generated_images, labels], gene_labels)
+	      exp_replay = []
+	      break
+    
             d_loss = 0.5 * np.add(d_loss_real, d_loss_fake)
+	    
 
             # ---------------------
             #  Train Generator
@@ -245,7 +297,7 @@ class CGAN():
 
 if __name__ == '__main__':
     cgan = CGAN()
-    cgan.load_xrays(epochs=2000, batch_size=128, save_interval=50)
+    cgan.load_xrays(epochs=100, batch_size=128, save_interval=50)
     cgan.generator.save('models/gen.h5')
     cgan.discriminator.save('models/disc.h5')
     # Generate one-hot-encoded labels
@@ -262,7 +314,7 @@ if __name__ == '__main__':
     cnt = 0
     fig, ax = plt.subplots()
     for label in OHE_labels:
-        for num in range(1000):
+        for num in range(1):
 	    nlab = np.asarray([label]).reshape(-1, 1)
 	    noise1 = np.random.normal(0, 1, (1, 128))#cgan.latent_dim))
 	    #noise1 = np.zeros((1, 10000))
@@ -270,5 +322,5 @@ if __name__ == '__main__':
 	    img = cgan.generator.predict([noise1, nlab])#labels1])
 	    plt.imshow(img[cnt,:,:,0], cmap='gray')
             #cnt+=1
-	    fig.savefig("images-no-noise/" + str(label) + "-" + str(num) + ".png")
+	    fig.savefig("images-strong-conv/" + str(label) + "-" + str(num) + ".png")
 	    plt.clf()
