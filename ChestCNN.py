@@ -61,7 +61,6 @@ epochs=10
 batch_size=50
 
 model=Sequential()
-
 model.add(Conv2D(64, kernel_size=(kernel_dims), padding='same', activation='relu', input_shape=input_shape))
 model.add(BatchNormalization())
 model.add(MaxPooling2D())
