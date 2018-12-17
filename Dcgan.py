@@ -4,7 +4,7 @@ from keras.datasets import mnist
 from keras.layers import Input, Dense, Reshape, Flatten, Dropout
 from keras.layers import BatchNormalization, Activation, ZeroPadding2D
 from keras.layers.advanced_activations import LeakyReLU
-from keras.layers.convolutional import UpSampling2D, Conv2D
+from keras.layers.convolutional import UpSampling2D, Conv2D, Conv2DTranspose
 from keras.models import Sequential, Model
 from keras.optimizers import Adam
 import pandas as pd
@@ -32,13 +32,13 @@ class DCGAN():
         optimizer = Adam(0.0001, 0.5)
 
         # Build and compile the discriminator
-        self.discriminator = multi_gpu_model(self.build_discriminator())
+        self.discriminator = self.build_discriminator()#multi_gpu_model(self.build_discriminator())
         self.discriminator.compile(loss='binary_crossentropy',
             optimizer=optimizer,
             metrics=['accuracy'])
 
         # Build the generator
-        self.generator = multi_gpu_model(self.build_generator())
+        self.generator = self.build_generator()#multi_gpu_model(self.build_generator())
 
         # The generator takes noise as input and generates imgs
         z = Input(shape=(self.latent_dim,))
@@ -59,17 +59,26 @@ class DCGAN():
 
         model = Sequential()
 
-        model.add(Dense(128 * 32 * 32, activation="relu", input_dim=self.latent_dim))
-        model.add(Reshape((32, 32, 128)))
+        model.add(Dense(1024 * 4 * 4, activation="relu", input_dim=self.latent_dim))
+        model.add(Reshape((4, 4, 1024)))
         model.add(UpSampling2D())
-        model.add(Conv2D(128, kernel_size=3, padding="same"))
+        model.add(Conv2DTranspose(512, kernel_size=3, strides=(1, 1), dilation_rate=2, padding="same"))
         model.add(BatchNormalization(momentum=0.8))
         model.add(Activation("relu"))
         model.add(UpSampling2D())
-        model.add(Conv2D(64, kernel_size=3, padding="same"))
+        model.add(Conv2DTranspose(256, kernel_size=3, strides=(1, 1),dilation_rate=2, padding="same"))
         model.add(BatchNormalization(momentum=0.8))
         model.add(Activation("relu"))
-        model.add(Conv2D(self.channels, kernel_size=3, padding="same"))
+        model.add(UpSampling2D())
+        model.add(Conv2DTranspose(128, kernel_size=3, strides=(1, 1), dilation_rate=2, padding="same"))
+        model.add(BatchNormalization(momentum=0.8))
+        model.add(Activation("relu"))
+        model.add(UpSampling2D())
+        model.add(Conv2DTranspose(64, kernel_size=3, strides=(1, 1), dilation_rate=2, padding="same"))
+        model.add(BatchNormalization(momentum=0.8))
+        model.add(Activation("relu"))
+
+        model.add(Conv2DTranspose(self.channels, kernel_size=3, strides=(1, 1), dilation_rate=2, padding="same"))
         model.add(Activation("tanh"))
 
         model.summary()
@@ -83,19 +92,22 @@ class DCGAN():
 
         model = Sequential()
 
-        model.add(Conv2D(64, kernel_size=3, strides=2, input_shape=self.img_shape, padding="same"))
+        model.add(Conv2D(32, kernel_size=3, strides=(2, 2), input_shape=self.img_shape, padding="same"))
         model.add(LeakyReLU(alpha=0.2))
         model.add(Dropout(0.25))
-        model.add(Conv2D(64, kernel_size=3, strides=2, padding="same"))
-        model.add(ZeroPadding2D(padding=((0,1),(0,1))))
+        model.add(Conv2D(64, kernel_size=3, strides=(2, 2), padding="same"))
         model.add(BatchNormalization(momentum=0.8))
         model.add(LeakyReLU(alpha=0.2))
         model.add(Dropout(0.25))
-        model.add(Conv2D(128, kernel_size=3, strides=2, padding="same"))
+        model.add(Conv2D(128, kernel_size=3, strides=(2, 2), padding="same"))
         model.add(BatchNormalization(momentum=0.8))
         model.add(LeakyReLU(alpha=0.2))
         model.add(Dropout(0.25))
-        model.add(Conv2D(256, kernel_size=3, strides=1, padding="same"))
+        model.add(Conv2D(256, kernel_size=3, strides=(2, 2), padding="same"))
+        model.add(BatchNormalization(momentum=0.8))
+        model.add(LeakyReLU(alpha=0.2))
+        model.add(Dropout(0.25))
+        model.add(Conv2D(512, kernel_size=3, strides=(2, 2), padding="same"))
         model.add(BatchNormalization(momentum=0.8))
         model.add(LeakyReLU(alpha=0.2))
         model.add(Dropout(0.25))
@@ -208,6 +220,7 @@ class DCGAN():
                 cnt += 1
         fig.savefig("../images1/xrays_%d.png" % epoch)
         plt.close()
+
 
 if __name__ == '__main__':
     dcgan = DCGAN()
