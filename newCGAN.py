@@ -27,7 +27,7 @@ def get_generator(input_layer, condition_layer):
     hid = LeakyReLU(alpha=0.1)(hid)
     hid = Reshape((32, 32, 128))(hid)
 
-    hid = Conv2D(256, kernel_size=4, strides=1, padding='same')(hid)
+    hid = Conv2D(128, kernel_size=4, strides=1, padding='same')(hid)
     hid = BatchNormalization(momentum=0.9)(hid)
     hid = LeakyReLU(alpha=0.1)(hid)
 
@@ -35,7 +35,7 @@ def get_generator(input_layer, condition_layer):
     hid = BatchNormalization(momentum=0.9)(hid)
     hid = LeakyReLU(alpha=0.1)(hid)
 
-    hid = Conv2D(256, kernel_size=5, strides=1, padding='same')(hid)
+    hid = Conv2D(128, kernel_size=5, strides=1, padding='same')(hid)
     hid = BatchNormalization(momentum=0.9)(hid)
     hid = LeakyReLU(alpha=0.1)(hid)
 
@@ -43,11 +43,11 @@ def get_generator(input_layer, condition_layer):
     hid = BatchNormalization(momentum=0.9)(hid)
     hid = LeakyReLU(alpha=0.1)(hid)
 
-    hid = Conv2D(512, kernel_size=5, strides=1, padding='same')(hid)
+    hid = Conv2D(128, kernel_size=5, strides=1, padding='same')(hid)
     hid = BatchNormalization(momentum=0.9)(hid)
     hid = LeakyReLU(alpha=0.1)(hid)
 
-    hid = Conv2D(512, kernel_size=5, strides=1, padding='same')(hid)
+    hid = Conv2D(128, kernel_size=5, strides=1, padding='same')(hid)
     hid = BatchNormalization(momentum=0.9)(hid)
     hid = LeakyReLU(alpha=0.1)(hid)
 
@@ -61,19 +61,19 @@ def get_generator(input_layer, condition_layer):
 
 
 def get_discriminator(input_layer, condition_layer):
-    hid = Conv2D(512, kernel_size=3, strides=1, padding='same')(input_layer)
+    hid = Conv2D(128, kernel_size=3, strides=1, padding='same')(input_layer)
     hid = BatchNormalization(momentum=0.9)(hid)
     hid = LeakyReLU(alpha=0.1)(hid)
 
-    hid = Conv2D(512, kernel_size=4, strides=2, padding='same')(hid)
+    hid = Conv2D(128, kernel_size=4, strides=2, padding='same')(hid)
     hid = BatchNormalization(momentum=0.9)(hid)
     hid = LeakyReLU(alpha=0.1)(hid)
 
-    hid = Conv2D(512, kernel_size=4, strides=2, padding='same')(hid)
+    hid = Conv2D(128, kernel_size=4, strides=2, padding='same')(hid)
     hid = BatchNormalization(momentum=0.9)(hid)
     hid = LeakyReLU(alpha=0.1)(hid)
 
-    hid = Conv2D(512, kernel_size=4, strides=2, padding='same')(hid)
+    hid = Conv2D(256, kernel_size=4, strides=2, padding='same')(hid)
     hid = BatchNormalization(momentum=0.9)(hid)
     hid = LeakyReLU(alpha=0.1)(hid)
 
