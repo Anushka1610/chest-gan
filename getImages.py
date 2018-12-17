@@ -23,5 +23,5 @@ for num in range(2):
     img = generator.predict(noise1)  # labels1])
     plt.imshow(img[cnt, :, :, 0], cmap='gray')
     # cnt+=1
-    fig.savefig("../images1/class1-" + str(num) + ".png")
+    fig.savefig("../images4000/class1-" + str(num) + ".png")
     plt.clf()

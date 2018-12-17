@@ -18,6 +18,8 @@ import sys
 
 import numpy as np
 
+from keras.utils import multi_gpu_model
+
 class DCGAN():
     def __init__(self):
         # Input shape
@@ -30,13 +32,13 @@ class DCGAN():
         optimizer = Adam(0.0001, 0.5)
 
         # Build and compile the discriminator
-        self.discriminator = self.build_discriminator()
+        self.discriminator = multi_gpu_model(self.build_discriminator())
         self.discriminator.compile(loss='binary_crossentropy',
             optimizer=optimizer,
             metrics=['accuracy'])
 
         # Build the generator
-        self.generator = self.build_generator()
+        self.generator = multi_gpu_model(self.build_generator())
 
         # The generator takes noise as input and generates imgs
         z = Input(shape=(self.latent_dim,))
@@ -209,7 +211,7 @@ class DCGAN():
 
 if __name__ == '__main__':
     dcgan = DCGAN()
-    dcgan.load_xrays(epochs=100, batch_size=32, save_interval=50)
+    dcgan.load_xrays(epochs=4000, batch_size=32, save_interval=50)
     dcgan.generator.save('dcgen.h5')
     dcgan.discriminator.save('dcdis.h5')
 
