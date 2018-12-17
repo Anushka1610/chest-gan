@@ -10,6 +10,8 @@ from keras.optimizers import Adam
 import pandas as pd
 import cv2
 
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 import sys
@@ -120,7 +122,7 @@ class DCGAN():
         # prepare label binarizer
         from sklearn import preprocessing
         # OHE
-        image_path="/Volumes/Anushka/data/train/"
+        image_path="../images/"
 
         count = 0
         for index, row in dataTrain[dataTrain["Finding Labels"] == class_name].iterrows():
@@ -208,8 +210,8 @@ class DCGAN():
 if __name__ == '__main__':
     dcgan = DCGAN()
     dcgan.load_xrays(epochs=100, batch_size=32, save_interval=50)
-    dcgan.generator.save('/dcgen.h5')
-    dcgan.discriminator.save('/dcdis.h5')
+    dcgan.generator.save('dcgen.h5')
+    dcgan.discriminator.save('dcdis.h5')
 
     from sklearn import preprocessing
 
@@ -231,7 +233,7 @@ if __name__ == '__main__':
             img = dcgan.generator.predict([noise1, nlab])  # labels1])
             plt.imshow(img[cnt, :, :, 0], cmap='gray')
             # cnt+=1
-            fig.savefig("../images/class1" + str(label) + "-" + str(num) + ".png")
+            fig.savefig("../images1/class1-" + str(label) + "-" + str(num) + ".png")
             plt.clf()
 
 
