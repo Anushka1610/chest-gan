@@ -12,6 +12,7 @@ import keras.backend as K
 import matplotlib.pyplot as plt
 
 import sys
+import os
 import numpy as np
 import pandas as pd
 import cv2
@@ -160,7 +161,7 @@ BATCH_SIZE = 52
 
 # # Get training images
 (img_x, img_y) = 128,128
-train_path = "/Users/anushkagupta/Desktop/newDataTrain.csv"
+train_path = "trainData.csv"
 
 classes = ['Atelectasis', 'No Finding', 'Cardiomegaly', 'Effusion', 'Pneumothorax']
 num_classes = len(classes)
@@ -179,7 +180,7 @@ lb.fit(classes)
 prev = np.zeros((img_x, img_y))
 count = 0
 for index, row in dataTrain.iterrows():
-    img1 = "/Volumes/Anushka/data/train/" + row["Image Index"]
+    img1 = os.path.join("../images/", row["Image Index"])
     image1 = cv2.imread(img1)  # Image.open(img).convert('L')
     image1 = image1[:, :, 0]
     arr1 = cv2.resize(image1, (img_x, img_y))
@@ -190,15 +191,19 @@ for index, row in dataTrain.iterrows():
     # print("shape of image: {}".format(arr1.shape))
     x_train.append(arr1)
     # not yet one-hot encoded
-    label = lb.transform([row["Finding Labels"]])[0]
+    label = lb.transform([row["Finding Labels"]])
     # STARTHERE
-    y_train.append(label)
+    y_train.append(np.asarray(label, dtype=np.uint8))
     # y_train.append(lb.transform([row["Finding Labels"]]).flatten().T)
     count += 1
 
     # 1hot encode labels
     #y_train = lb.fit_transform(y_train)
 x_train = np.asarray(x_train)
+y_train = np.asarray(y_train)
+print("Label shape (should be (X, 1): {}".format(y_train.shape))
+print("Label element shape (should be (1,): {}".format(y_train[0].shape))
+y_train = one_hot_encode(y_train[:,0])
 x_train = x_train.reshape(count, img_y, img_x, 1)
 print("Training shape: {}".format(x_train.shape))
 
