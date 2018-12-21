@@ -77,6 +77,9 @@ class DCGAN():
         model.add(Conv2DTranspose(64, kernel_size=3, strides=(1, 1), dilation_rate=2, padding="same"))
         model.add(BatchNormalization(momentum=0.8))
         model.add(Activation("relu"))
+        model.add(Conv2DTranspose(128, kernel_size=3, strides=(1, 1), dilation_rate=2, padding="same"))
+        model.add(BatchNormalization(momentum=0.8))
+        model.add(Activation("relu"))
 
         model.add(Conv2DTranspose(self.channels, kernel_size=3, strides=(1, 1), dilation_rate=2, padding="same"))
         model.add(Activation("tanh"))
