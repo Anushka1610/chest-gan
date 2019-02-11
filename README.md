@@ -1,6 +1,8 @@
 # chest-gan
 Generating Chest X-Rays with GANs
 
+<a href="https://ibb.co/BsVsDn8"><img src="https://i.ibb.co/SvXvTfq/GANs.png" alt="GANs" border="0"></a>
+
 ## Motivation
 
 The aim of this repository is to generate artificial chest x-ray images of 5 different
