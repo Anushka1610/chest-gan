@@ -1,7 +1,7 @@
+![example generations](img/banner.png)
+
 # chest-gan
 Generating Chest X-Rays with GANs
-
-<a href="https://ibb.co/BsVsDn8"><img src="https://i.ibb.co/SvXvTfq/GANs.png" alt="GANs" border="0"></a>
 
 ## Motivation
 
